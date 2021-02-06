@@ -91,5 +91,84 @@ components(dcmp) %>%  autoplot() +
 
 ```
 
+#### Autocorrelation Function - use the ACF to explore autocorrelation - here we expect seasonality to be clear from the ACF
+
+```{r}
+energy_ts %>% 
+  ACF(res_total) %>% 
+  autoplot
+```
+
+And yep, we see that observations separated by 12 months are the most highly correlated, reflecting strong seasonality we see in all of our other exploratory visualizations.
+
+
+### Part D: Forecasting by Holt-Winters exponential smoothing
+Note: here we use ETS, which technically uses different optimization than Holt-Winters exponential smoothing, but is otherwise the same (From Rob Hyndman: “The model is equivalent to the one you are fitting with HoltWinters(), although the parameter estimation in ETS() uses MLE.”)
+
+To create the model below, we specify the model type (exponential smoothing, ETS), then tell it what type of seasonality it should assume using the season("") expression, where “N” = non-seasonal (try changing it to this to see how unimpressive the forecast becomes!), “A” = additive, “M” = multiplicative. Here, we’ll say seasonality is multiplicative due to the change in variance over time and also within the secondary summer peak:
+
+```{r}
+#creating the model
+energy_fit <- energy_ts %>% 
+  model(
+    ets = ETS(res_total ~ season("M"))
+  )
+
+#forecasting using the model 10 years into the future
+
+energy_forecast <- energy_fit %>% 
+  forecast(h = "10 years")
+
+#plot just the forecasted values with 80 & 95% Confidence intervals
+
+energy_forecast %>% 
+  autoplot
+
+```
+
+```{r}
+# can also plot the forecasted data with the original data
+
+energy_forecast %>% 
+  autoplot(energy_ts)
+```
+
+#### Assessing Residuals
+We can use broom::augment() to append our original tsibble with what the model predicts the energy usage would be based on the model. Let’s do a little exploring through visualization.
+
+First, use broom::augment() to get the predicted values & residuals:
+```{r}
+# append the predicted values and residuals to original energy data
+energy_predicted <- broom::augment(energy_fit)
+
+```
+
+```{r}
+# plotting actual energy values and the predicted values
+
+ggplot(data = energy_predicted) +
+  geom_line(aes(x = date, y = res_total))+
+  geom_line(aes(x = date, y = .fitted, color = "red"))
+
+```
+
+Alot of overlap = good, means predictions are pretty good
+
+#### exploring the residuals - residuals should be uncorrelated, centered at 0 and ideally normaly distributed 
+
+```{r}
+# check residuals with a histogram
+ggplot(data = energy_predicted, aes(x = .resid)) +
+  geom_histogram()
+```
+
+
+
+
+
+
+
+
+
 
 
