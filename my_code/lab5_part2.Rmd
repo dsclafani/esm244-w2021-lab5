@@ -1,0 +1,130 @@
+---
+title: "lab5_part2"
+author: "Danielle Sclafani"
+date: "2/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tsibble)
+library(feasts)
+library(fable)
+library(here)
+library(janitor)
+library(sf)
+
+```
+
+# Part 2: Spatial data wrangling, visualization, and a variogram
+
+```{r}
+ca_counties <- read_sf(here("data", "ca_counties","CA_Counties_TIGER2016.shp"))
+```
+
+```{r}
+# wrangling
+
+ca_subset <- ca_counties %>% 
+  select(NAME, ALAND) %>% 
+  rename(county_name = NAME, land_area = ALAND)
+
+```
+
+```{r}
+# checking out to coordinate system 
+
+ca_subset %>% st_crs()
+```
+
+```{r}
+# plotting the spatial data
+ggplot(data = ca_subset)+
+  geom_sf(aes(fill = land_area), color = "white", size = 0.1) +
+  theme_void()+scale_fill_gradientn(colors = c("cyan", "blue", "purple"))
+
+
+```
+
+## Part B. Invasive Red Sesbania records 
+
+```{r}
+#reading in data for the invasive species
+
+sesbania <- read_sf(here("data", "red_sesbania", "ds80.shp"))
+
+#checking the coordinates
+
+sesbania %>% st_crs()
+
+
+```
+
+
+since the CRS is different for the map we made above and the sesbania data we want it to match
+```{r}
+#matching the coordinate systems
+
+sesbania <- st_transform(sesbania, 3857)
+
+sesbania %>% st_crs()
+```
+
+## combine the graphs
+
+```{r}
+ggplot() +
+  geom_sf(data = ca_subset)+
+  geom_sf(data = sesbania, size = 1, color = "red")
+```
+
+## joining data subsets
+- we want to find the counts of sesbania in each county. first we have to join the subsets
+```{r}
+ca_sesbania <- ca_subset %>% 
+  st_join(sesbania)
+```
+
+```{r}
+#finding the counts of sesbania by county
+sesbania_counts <- ca_sesbania %>% 
+  count(county_name)
+```
+
+
+Then we can plot a chloropleth using the number of records for red sesbania as the fill color (instead of what we used previously, land area):
+
+
+```{r}
+ggplot(data = sesbania_counts) +
+  geom_sf(aes(fill = n), color = "white", size = 0.1) +
+  scale_fill_gradientn(colors = c("lightgrey", "orange", "red"))+
+  theme_minimal()+
+  labs(fill = "Number of S. punicea records")
+```
+
+
+So we see that we can still use our usual wrangling skills! Let’s do a bit more for fun, just to prove that our existing wrangling skills still work with spatial data - the spatial information just sticks to it!
+Only plot the county with the greatest number of red sesbania records (Solano), and make a map of those locations (yeah there are many ways to do this):
+
+```{r}
+#subset of sesbania in Solano county
+
+solano_sesbania <- sesbania %>% 
+  filter(COUNTY == "Solano")
+
+solano <- ca_subset %>% 
+  filter(county_name =="Solano")
+
+ggplot()+
+  geom_sf(data = solano)+
+  geom_sf(data = solano_sesbania)
+
+```
+
+
+
+### Part C - Making an interactive map
+
+
