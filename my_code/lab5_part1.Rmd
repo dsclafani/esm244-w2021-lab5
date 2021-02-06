@@ -1,0 +1,95 @@
+---
+title: "lab5_part1"
+author: "Danielle Sclafani"
+date: "2/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tsibble)
+library(feasts)
+library(fable)
+library(here)
+library(janitor)
+
+```
+### Part A & B
+
+```{r}
+#reading in the data
+
+energy <- read_csv(here("data", "energy.csv"))
+
+# converting the month column that is currently "March 2020" to a time series that R can read using tsibble
+
+energy_ts <- energy %>% 
+  mutate(date = tsibble::yearmonth(month)) %>% 
+  as_tsibble(key = NULL, index = date)
+
+```
+
+### Part C: Exploring the time series data
+
+```{r}
+ggplot(data = energy_ts, aes(x = date, y= res_total)) +
+  geom_line()+
+  labs(y = "Residential Energy consumption \n (Trillion BTU)")
+```
+
+
+Looks like there are some interesting things happening. We should ask:
+
+Is there an overall trend?
+Is there seasonality?
+Any cyclicality evident?
+Any other notable patterns, outliers, etc.?
+
+The big ones to notice quickly here are:
+
+Overall increasing trend overall, but stability (and possibly a slight decreasing trend) starting around 2005
+Clear seasonality, with a dominant seasonal feature and also a secondary peak each year - that secondary peak has increased substantially
+No notable cyclicality or outliers
+
+### Seasonplot using feasts::gg_season()
+
+```{r}
+energy_ts %>% 
+  gg_season(y= res_total) +
+  theme_minimal()+
+  labs(x = "month",
+       y = "residential energy consumption (trillion BTU)")
+```
+
+
+
+This is really useful for us to explore both seasonal patterns, and how those seasonal patterns have changed over the years of this data (1973 - 2017). What are the major takeaways from this seasonplot?
+
+The highest residential energy usage is around December / January / February
+There is a secondary peak around July & August (that’s the repeated secondary peak we see in the original time series graph)
+We can also see that the prevalence of that second peak has been increasing over the course of the time series: in 1973 (orange) there was hardly any summer peak. In more recent years (blue/magenta) that peak is much more prominent.
+
+#### Subseries plot
+
+```{r}
+energy_ts %>% gg_subseries(res_total)
+```
+
+Our takeaway here is similar: there is clear seasonality (higher values in winter months), with an increasingly evident second peak in June/July/August. This reinforces our takeaways from the raw data and seasonplots.
+
+#### Decomposition by STL - STL allows for seasonality to change over time. which we need to use here because we are seeing that it is changing over time with the second summer peak increaseing over time. classical decomposition does not allow for seasonality to vary over time
+
+```{r}
+# finding STL decomp
+dcmp <- energy_ts %>% 
+  model(STL(res_total ~ season()))
+
+#visuaizing the components
+components(dcmp) %>%  autoplot() +
+  theme_minimal()
+
+```
+
+
+
