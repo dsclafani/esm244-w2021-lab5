@@ -14,6 +14,7 @@ library(fable)
 library(here)
 library(janitor)
 library(sf)
+library(tmap) #interactive map package
 
 ```
 
@@ -127,4 +128,16 @@ ggplot()+
 
 ### Part C - Making an interactive map
 
+```{r}
+# set the viewing mode to interactive
+tmap_mode(mode = "view")
+
+#make a map with the polygon fill color updated by variable land area, updating the color palette to Bu Gn, then add another shape layer for the sesbania records (added as dots)
+
+tm_shape(ca_subset) +
+  tm_fill("land_area", palette = "BuGn")+
+  tm_shape(sesbania) +
+  tm_dots()
+
+```
 
